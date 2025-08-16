@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
 import 'screens/video_page.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/onboarding_second_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/signup_screen.dart';
+import 'screens/forgot_password_screen.dart';
 import 'screens/home_dashboard.dart';
 
 void main() {
@@ -73,6 +77,10 @@ class MicroNestApp extends StatelessWidget {
       routes: {
         '/video': (context) => const VideoPage(),
         '/onboarding': (context) => const OnboardingScreen(),
+        '/onboarding-second': (context) => const OnboardingSecondScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/signup': (context) => const SignupScreen(),
+        '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeDashboard(),
         // Add more routes as you create other screens
         // '/registration': (context) => const RegistrationScreen(),

@@ -16,6 +16,7 @@ class _VideoPageState extends State<VideoPage> with TickerProviderStateMixin {
   bool _isVideoInitialized = false;
   bool _isVideoPlaying = false;
   bool _hasVideoError = false;
+  bool _isFullScreen = true;
 
   @override
   void initState() {
@@ -41,7 +42,12 @@ class _VideoPageState extends State<VideoPage> with TickerProviderStateMixin {
 
 
   void _startAnimations() async {
-    _glowController.repeat(reverse: true);
+    try {
+      _glowController.repeat(reverse: true);
+    } catch (e) {
+      // If animation fails, just stop it
+      _glowController.stop();
+    }
   }
 
   Future<void> _initializeVideo() async {
@@ -131,92 +137,157 @@ class _VideoPageState extends State<VideoPage> with TickerProviderStateMixin {
         child: Stack(
           children: [
             // Background with organic shapes and flowing elements
-            _buildBackground(),
+            _buildSafeBackground(),
             
-            // Main content
-            SafeArea(
-              child: Column(
-                children: [
-                  // Skip button at top right
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(25),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 20,
-                              spreadRadius: 0,
-                            ),
-                          ],
-                        ),
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.pushReplacementNamed(context, '/onboarding');
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                          ),
-                          child: const Text(
-                            'Skip Video',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Video Container
-                          Container(
-                            width: MediaQuery.of(context).size.width * 0.9,
-                            height: MediaQuery.of(context).size.width * 0.6,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
-                                width: 1,
-                              ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: Center(
-                                child: _hasVideoError
-                                    ? _buildErrorState()
-                                    : _isVideoInitialized
-                                        ? _buildVideoPlayer()
-                                        : _buildLoadingState(),
-                              ),
-                            ),
-                          ),
-                          
-
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Full-screen video with skip button overlay
+            _isVideoInitialized && !_hasVideoError
+                ? _buildFullScreenVideo()
+                : _buildPlaceholderContent(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildFullScreenVideo() {
+    return Stack(
+      children: [
+        // Full-screen video container
+        Positioned.fill(
+          child: Container(
+            color: Colors.black,
+            child: Center(
+              child: _buildVideoPlayer(),
+            ),
+          ),
+        ),
+        
+        // Skip button overlay on video
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 20,
+          right: 20,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF52B788).withOpacity(0.9),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.6),
+                  blurRadius: 25,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: TextButton(
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/onboarding');
+              },
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
+              ),
+              child: const Text(
+                'SKIP VIDEO',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+          ),
+        ),
+        
+        // Full-screen toggle button overlay
+        Positioned(
+          bottom: MediaQuery.of(context).padding.bottom + 30,
+          right: 30,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(25),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: IconButton(
+              onPressed: () {
+                setState(() {
+                  _isFullScreen = !_isFullScreen;
+                });
+              },
+              icon: Icon(
+                _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                color: Colors.white,
+                size: 28,
+              ),
+              tooltip: _isFullScreen ? 'Exit Full Screen' : 'Full Screen',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlaceholderContent() {
+    return SafeArea(
+      child: Column(
+        children: [
+          // Skip button at top right for placeholder content
+          Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF52B788).withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 25,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pushReplacementNamed(context, '/onboarding');
+                  },
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
+                  ),
+                  child: const Text(
+                    'SKIP VIDEO',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          Expanded(
+            child: Center(
+              child: _hasVideoError
+                  ? _buildErrorState()
+                  : _buildLoadingState(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -226,29 +297,21 @@ class _VideoPageState extends State<VideoPage> with TickerProviderStateMixin {
       return Stack(
         alignment: Alignment.center,
         children: [
-          Container(
-            width: MediaQuery.of(context).size.width * 0.9,
-            height: MediaQuery.of(context).size.width * 0.6, // Reduced height to prevent stretching
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: AspectRatio(
-                aspectRatio: _videoController!.value.aspectRatio,
+          // Full-screen video player
+          SizedBox(
+            width: double.infinity,
+            height: double.infinity,
+            child: FittedBox(
+              fit: BoxFit.contain,
+              child: SizedBox(
+                width: _videoController!.value.size.width,
+                height: _videoController!.value.size.height,
                 child: VideoPlayer(_videoController!),
               ),
             ),
           ),
           
-          // Simple play button overlay (only show if video is not playing)
+          // Play button overlay (only show if video is not playing)
           if (!_videoController!.value.isPlaying)
             GestureDetector(
               onTap: () {
@@ -256,16 +319,20 @@ class _VideoPageState extends State<VideoPage> with TickerProviderStateMixin {
                 setState(() {});
               },
               child: Container(
-                width: 80,
-                height: 80,
+                width: 120,
+                height: 120,
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withOpacity(0.8),
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 3,
+                  ),
                 ),
                 child: const Icon(
                   Icons.play_arrow,
                   color: Colors.white,
-                  size: 40,
+                  size: 60,
                 ),
               ),
             ),
@@ -469,16 +536,38 @@ class _VideoPageState extends State<VideoPage> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildSafeBackground() {
+    try {
+      return AnimatedBuilder(
+        animation: _glowAnimation,
+        builder: (context, child) {
+          return CustomPaint(
+            painter: BackgroundPainter(_glowAnimation.value),
+            size: Size.infinite,
+          );
+        },
+      );
+    } catch (e) {
+      // Fallback to simple gradient if background fails
+      return Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topLeft,
+            radius: 1.5,
+            colors: [
+              Color(0xFF1B4332),
+              Color(0xFF081C15),
+              Color(0xFF000000),
+            ],
+            stops: [0.0, 0.6, 1.0],
+          ),
+        ),
+      );
+    }
+  }
+
   Widget _buildBackground() {
-    return AnimatedBuilder(
-      animation: _glowAnimation,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: BackgroundPainter(_glowAnimation.value),
-          size: Size.infinite,
-        );
-      },
-    );
+    return _buildSafeBackground();
   }
 }
 
@@ -489,82 +578,54 @@ class BackgroundPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+    
     final paint = Paint();
     
-    paint.color = const Color(0xFF2D6A4F).withOpacity(0.1);
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 2;
+    // Simple gradient background instead of complex paths
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
     
-    // Draw flowing organic curves
-    final path1 = Path();
-    path1.moveTo(0, size.height * 0.3);
-    path1.quadraticBezierTo(
-      size.width * 0.3, 
-      size.height * 0.1 + (math.sin(animationValue * 2 * math.pi) * 50),
-      size.width * 0.7, 
-      size.height * 0.4
+    // Create a simple radial gradient
+    final gradient = RadialGradient(
+      center: Alignment.topLeft,
+      radius: 1.5,
+      colors: [
+        const Color(0xFF2D6A4F).withOpacity(0.1),
+        const Color(0xFF40916C).withOpacity(0.08),
+        const Color(0xFF52B788).withOpacity(0.05),
+      ],
+      stops: const [0.0, 0.6, 1.0],
     );
-    path1.quadraticBezierTo(
-      size.width * 0.9, 
-      size.height * 0.6 + (math.cos(animationValue * 2 * math.pi) * 30),
-      size.width, 
-      size.height * 0.8
-    );
-    canvas.drawPath(path1, paint);
     
-    // Second flowing curve
-    paint.color = const Color(0xFF40916C).withOpacity(0.08);
-    final path2 = Path();
-    path2.moveTo(size.width, size.height * 0.2);
-    path2.quadraticBezierTo(
-      size.width * 0.6, 
-      size.height * 0.5 + (math.sin(animationValue * 2 * math.pi + 1) * 40),
-      size.width * 0.2, 
-      size.height * 0.7
-    );
-    path2.quadraticBezierTo(
-      size.width * 0.1, 
-      size.height * 0.9 + (math.cos(animationValue * 2 * math.pi + 1) * 20),
-      0, 
-      size.height
-    );
-    canvas.drawPath(path2, paint);
+    paint.shader = gradient.createShader(rect);
+    canvas.drawRect(rect, paint);
     
-    final starColors = [
+    // Simple animated dots instead of complex stars
+    paint.shader = null;
+    paint.style = PaintingStyle.fill;
+    
+    final dotColors = [
       const Color(0xFF52B788),
       const Color(0xFF40916C),
       const Color(0xFF95D5B2),
     ];
     
-    for (int i = 0; i < 25; i++) {
-      final x = (i * 41.0) % size.width;
-      final y = (i * 67.0) % size.height;
-      final colorIndex = i % starColors.length;
-      final baseOpacity = 0.2 + (0.3 * math.sin(animationValue * 2 * math.pi + i.toDouble()));
-      final starSize = 1.5 + (baseOpacity * 2.5);
-      paint.color = starColors[colorIndex].withOpacity(baseOpacity);
-      paint.style = PaintingStyle.fill;
-      
-      // Draw star shape
-      final starPath = Path();
-      final centerX = x;
-      final centerY = y;
-      
-      for (int j = 0; j < 8; j++) {
-        final angle = (j * math.pi / 4);
-        final radius = j % 2 == 0 ? starSize : starSize * 0.4;
-        final pointX = centerX + radius * math.cos(angle);
-        final pointY = centerY + radius * math.sin(angle);
-
-        if (j == 0) {
-          starPath.moveTo(pointX, pointY);
-        } else {
-          starPath.lineTo(pointX, pointY);
-        }
+    for (int i = 0; i < 15; i++) {
+      try {
+        final x = (i * 67.0) % (size.width - 10);
+        final y = (i * 89.0) % (size.height - 10);
+        final colorIndex = i % dotColors.length;
+        final opacity = 0.1 + (0.2 * (math.sin(animationValue * 2 * math.pi + i.toDouble()) + 1) / 2);
+        
+        paint.color = dotColors[colorIndex].withOpacity(opacity);
+        
+        // Draw simple circles instead of complex star shapes
+        final dotSize = 2.0 + (opacity * 3.0);
+        canvas.drawCircle(Offset(x, y), dotSize, paint);
+      } catch (e) {
+        // Skip drawing this dot if there's an error
+        continue;
       }
-      starPath.close();
-      
-      canvas.drawPath(starPath, paint);
     }
   }
 

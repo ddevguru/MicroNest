@@ -37,6 +37,15 @@ dependencies:
   
   # Video player for the video page
   video_player: ^2.7.2
+  
+  # Lottie animations
+  lottie: ^3.1.0
+  
+  # Image picker for profile photos
+  image_picker: ^1.0.7
+  
+  # Permission handler for runtime permissions
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:
