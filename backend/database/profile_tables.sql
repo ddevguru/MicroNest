@@ -107,11 +107,10 @@ INSERT IGNORE INTO user_profile_extensions (user_id) VALUES (1);
 -- Note: Run the separate fix_users_table.sql script to safely add missing columns to the users table
 -- This avoids MySQL version compatibility issues with IF NOT EXISTS syntax
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_users_trust_score ON users(trust_score);
-CREATE INDEX IF NOT EXISTS idx_users_kyc_status ON users(kyc_status);
-CREATE INDEX IF NOT EXISTS idx_user_preferences_user_id ON user_preferences(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_security_user_id ON user_security(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_achievements_user_id ON user_achievements(user_id);
-CREATE INDEX IF NOT EXISTS idx_trust_score_history_user_id ON trust_score_history(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_profile_extensions_user_id ON user_profile_extensions(user_id); 
+-- Note: Run the separate create_indexes.sql script to safely create performance indexes
+-- This avoids MySQL version compatibility issues with CREATE INDEX IF NOT EXISTS syntax
+
+-- Database setup complete! Run these scripts in order:
+-- 1. profile_tables.sql (this file) - Creates all profile tables
+-- 2. fix_users_table.sql - Adds missing columns to users table  
+-- 3. create_indexes.sql - Creates performance indexes 

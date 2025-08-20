@@ -27,7 +27,8 @@ try {
     $authHeader = $headers['Authorization'] ?? '';
     
     if (empty($authHeader) || !str_starts_with($authHeader, 'Bearer ')) {
-        ResponseUtil::sendError('Authorization header required', 401);
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authorization header required']);
         exit;
     }
     
@@ -35,7 +36,8 @@ try {
     $decoded = $jwtUtil->verifyToken($token);
     
     if (!$decoded) {
-        ResponseUtil::sendError('Invalid or expired token', 401);
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Invalid or expired token']);
         exit;
     }
     
@@ -47,7 +49,8 @@ try {
                 $result = $profile->getCompleteProfile($userId);
                 echo json_encode($result);
             } else {
-                ResponseUtil::sendError('Method not allowed', 405);
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
             }
             break;
             
@@ -57,7 +60,8 @@ try {
                 $result = $profile->updateProfile($userId, $data);
                 echo json_encode($result);
             } else {
-                ResponseUtil::sendError('Method not allowed', 405);
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
             }
             break;
             
@@ -67,7 +71,8 @@ try {
                 $result = $profile->updateNotificationSettings($userId, $data);
                 echo json_encode($result);
             } else {
-                ResponseUtil::sendError('Method not allowed', 405);
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
             }
             break;
             
@@ -77,7 +82,8 @@ try {
                 $result = $profile->updateSecuritySettings($userId, $data);
                 echo json_encode($result);
             } else {
-                ResponseUtil::sendError('Method not allowed', 405);
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
             }
             break;
             
@@ -86,7 +92,8 @@ try {
                 $result = $profile->getTrustScoreDetails($userId);
                 echo json_encode($result);
             } else {
-                ResponseUtil::sendError('Method not allowed', 405);
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
             }
             break;
             
@@ -95,7 +102,37 @@ try {
                 $result = $profile->getAwardsAndAchievements($userId);
                 echo json_encode($result);
             } else {
-                ResponseUtil::sendError('Method not allowed', 405);
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'pin':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $profile->setPin($userId, $data);
+                echo json_encode($result);
+            } else if ($method === 'PUT') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $profile->updatePin($userId, $data);
+                echo json_encode($result);
+            } else if ($method === 'DELETE') {
+                $result = $profile->removePin($userId);
+                echo json_encode($result);
+            } else {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'verify-pin':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $profile->verifyPin($userId, $data['pin']);
+                echo json_encode($result);
+            } else {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
             }
             break;
             
@@ -105,13 +142,15 @@ try {
                 $result = $profile->getCompleteProfile($userId);
                 echo json_encode($result);
             } else {
-                ResponseUtil::sendError('Method not allowed', 405);
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
             }
             break;
     }
     
 } catch (Exception $e) {
     error_log("Profile API Error: " . $e->getMessage());
-    ResponseUtil::sendError('Internal server error: ' . $e->getMessage(), 500);
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Internal server error: ' . $e->getMessage()]);
 }
 ?> 

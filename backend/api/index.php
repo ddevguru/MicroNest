@@ -2,122 +2,69 @@
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-// Handle preflight OPTIONS request
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit();
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0);
 }
-
-// Log all incoming requests
-error_log("=== API REQUEST ===");
-error_log("Method: " . $_SERVER['REQUEST_METHOD']);
-error_log("URI: " . $_SERVER['REQUEST_URI']);
-error_log("User Agent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'));
-error_log("Remote IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'Unknown'));
 
 // Include required files
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../models/User.php';
-require_once __DIR__ . '/../models/Auth.php';
-require_once __DIR__ . '/../models/EmailService.php';
-require_once __DIR__ . '/../utils/JWTUtil.php';
 require_once __DIR__ . '/../utils/ResponseUtil.php';
+require_once __DIR__ . '/../utils/JWTUtil.php';
 
-// Get request method and URI
+// Get request method and path
 $method = $_SERVER['REQUEST_METHOD'];
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$path = explode('/', trim($uri, '/'));
+$requestUri = $_SERVER['REQUEST_URI'];
+$path = parse_url($requestUri, PHP_URL_PATH);
+$pathParts = explode('/', trim($path, '/'));
 
-error_log("Parsed path: " . json_encode($path));
-
-// Remove 'api' from path if present
-if ($path[0] === 'api') {
-    array_shift($path);
-    error_log("Removed 'api' from path, new path: " . json_encode($path));
+// Remove the base path (api) from the path parts
+if (isset($pathParts[0]) && $pathParts[0] === 'api') {
+    array_shift($pathParts);
 }
 
 // Route the request
-try {
-    error_log("Routing to: " . ($path[0] ?? 'default'));
-    
-    switch ($path[0]) {
-        case 'auth':
-            error_log("Handling auth route: " . ($path[1] ?? 'unknown'));
-            handleAuthRoutes($method, $path);
-            break;
-        case 'users':
-            error_log("Handling users route");
-            handleUserRoutes($method, $path);
-            break;
-        case 'groups':
-            error_log("Handling groups route");
-            handleGroupRoutes($method, $path);
-            break;
-        case 'contributions':
-            error_log("Handling contributions route");
-            handleContributionRoutes($method, $path);
-            break;
-        case 'loans':
-            error_log("Handling loans route");
-            handleLoanRoutes($method, $path);
-            break;
-        case 'profile':
-            error_log("Handling profile route");
-            handleProfileRoutes($method, $path);
-            break;
-        case 'test':
-            error_log("Handling test request");
-            try {
-                $database = new Database();
-                $conn = $database->getConnection();
-                if ($conn) {
-                    echo json_encode(['success' => true, 'message' => 'Database connection successful']);
-                } else {
-                    echo json_encode(['success' => false, 'message' => 'Database connection failed']);
-                }
-            } catch (Exception $e) {
-                error_log("Test endpoint error: " . $e->getMessage());
-                echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
-            }
-            break;
-        default:
-            error_log("No route found for: " . ($path[0] ?? 'empty'));
-            ResponseUtil::sendError('Endpoint not found', 404);
-    }
-} catch (Exception $e) {
-    error_log("=== API ERROR ===");
-    error_log("Error: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
-    ResponseUtil::sendError('Internal server error: ' . $e->getMessage(), 500);
+if (empty($pathParts)) {
+    ResponseUtil::sendError('API endpoint not specified', 404);
+}
+
+$endpoint = $pathParts[0] ?? '';
+
+switch ($endpoint) {
+    case 'auth':
+        handleAuthRoutes($method, array_slice($pathParts, 1));
+        break;
+        
+    case 'profile':
+        handleProfileRoutes($method, array_slice($pathParts, 1));
+        break;
+        
+    case 'dashboard':
+        handleDashboardRoutes($method, array_slice($pathParts, 1));
+        break;
+        
+    case 'groups':
+        handleGroupRoutes($method, array_slice($pathParts, 1));
+        break;
+        
+    default:
+        ResponseUtil::sendError('Endpoint not found', 404);
+        break;
 }
 
 function handleAuthRoutes($method, $path) {
-    $auth = new Auth();
+    require_once __DIR__ . '/../models/User.php';
+    require_once __DIR__ . '/../models/Auth.php';
     
-    error_log("=== AUTH ROUTE HANDLER ===");
-    error_log("Method: $method");
-    error_log("Path: " . json_encode($path));
+    $database = new Database();
+    $db = $database->getConnection();
+    $auth = new Auth($db);
     
-    switch ($path[1]) {
-        case 'login':
-            error_log("Handling login request");
+    switch ($path[0] ?? '') {
+        case 'register':
             if ($method === 'POST') {
                 $data = json_decode(file_get_contents('php://input'), true);
-                error_log("Login data: " . json_encode($data));
-                $result = $auth->login($data['email'], $data['password']);
-                echo json_encode($result);
-            } else {
-                ResponseUtil::sendError('Method not allowed', 405);
-            }
-            break;
-            
-        case 'signup':
-            error_log("Handling signup request");
-            if ($method === 'POST') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                error_log("Signup data: " . json_encode($data));
                 $result = $auth->signup($data);
                 echo json_encode($result);
             } else {
@@ -125,40 +72,48 @@ function handleAuthRoutes($method, $path) {
             }
             break;
             
-        case 'send-otp':
-            error_log("Handling send-otp request");
+        case 'signup':
             if ($method === 'POST') {
-                try {
-                    $data = json_decode(file_get_contents('php://input'), true);
-                    error_log("Send OTP data: " . json_encode($data));
-                    
-                    if (!isset($data['email'])) {
-                        error_log("Email field missing in request");
-                        ResponseUtil::sendError('Email field is required', 400);
-                        return;
-                    }
-                    
-                    $result = $auth->sendEmailOTP($data['email']);
-                    error_log("Send OTP result: " . json_encode($result));
-                    echo json_encode($result);
-                } catch (Exception $e) {
-                    error_log("=== SEND OTP EXCEPTION ===");
-                    error_log("Exception: " . $e->getMessage());
-                    error_log("Stack trace: " . $e->getTraceAsString());
-                    ResponseUtil::sendError('Internal server error: ' . $e->getMessage(), 500);
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $auth->signup($data);
+                echo json_encode($result);
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'login':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $auth->login($data);
+                echo json_encode($result);
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'send-otp':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                if (!isset($data['email'])) {
+                    ResponseUtil::sendError('Email is required', 400);
+                    break;
                 }
+                $result = $auth->sendEmailOTP($data['email']);
+                echo json_encode($result);
             } else {
                 ResponseUtil::sendError('Method not allowed', 405);
             }
             break;
             
         case 'verify-otp':
-            error_log("Handling verify-otp request");
             if ($method === 'POST') {
                 $data = json_decode(file_get_contents('php://input'), true);
-                error_log("Verify OTP data: " . json_encode($data));
+                if (!isset($data['email']) || !isset($data['otp'])) {
+                    ResponseUtil::sendError('Email and OTP are required', 400);
+                    break;
+                }
                 $result = $auth->verifyEmailOTP($data['email'], $data['otp']);
-                error_log("Verify OTP result: " . json_encode($result));
                 echo json_encode($result);
             } else {
                 ResponseUtil::sendError('Method not allowed', 405);
@@ -166,77 +121,9 @@ function handleAuthRoutes($method, $path) {
             break;
             
         case 'refresh':
-            error_log("Handling refresh request");
             if ($method === 'POST') {
-                $headers = getallheaders();
-                $refreshToken = $headers['Authorization'] ?? '';
-                $refreshToken = str_replace('Bearer ', '', $refreshToken);
-                
-                $result = $auth->refreshToken($refreshToken);
-                echo json_encode($result);
-            } else {
-                ResponseUtil::sendError('Method not allowed', 405);
-            }
-            break;
-            
-        case 'logout':
-            error_log("Handling logout request");
-            if ($method === 'POST') {
-                $headers = getallheaders();
-                $accessToken = $headers['Authorization'] ?? '';
-                $accessToken = str_replace('Bearer ', '', $accessToken);
-                
-                $result = $auth->logout($accessToken);
-                echo json_encode($result);
-            } else {
-                ResponseUtil::sendError('Method not allowed', 405);
-            }
-            break;
-            
-        default:
-            error_log("Unknown auth endpoint: " . ($path[1] ?? 'empty'));
-            ResponseUtil::sendError('Auth endpoint not found', 404);
-    }
-}
-
-function handleUserRoutes($method, $path) {
-    // Verify JWT token first
-    $headers = getallheaders();
-    $token = $headers['Authorization'] ?? '';
-    $token = str_replace('Bearer ', '', $token);
-    
-    if (empty($token)) {
-        ResponseUtil::sendError('Authorization token required', 401);
-        return;
-    }
-    
-    $jwtUtil = new JWTUtil();
-    $decoded = $jwtUtil->verifyToken($token);
-    
-    if (!$decoded) {
-        ResponseUtil::sendError('Invalid or expired token', 401);
-        return;
-    }
-    
-    $user = new User();
-    
-    switch ($path[1]) {
-        case 'profile':
-            if ($method === 'GET') {
-                $result = $user->getProfile($decoded->user_id);
-                echo json_encode($result);
-            } elseif ($method === 'PUT') {
                 $data = json_decode(file_get_contents('php://input'), true);
-                $result = $user->updateProfile($decoded->user_id, $data);
-                echo json_encode($result);
-            } else {
-                ResponseUtil::sendError('Method not allowed', 405);
-            }
-            break;
-            
-        case 'trust-score':
-            if ($method === 'GET') {
-                $result = $user->getTrustScore($decoded->user_id);
+                $result = $auth->refreshToken($data);
                 echo json_encode($result);
             } else {
                 ResponseUtil::sendError('Method not allowed', 405);
@@ -244,111 +131,49 @@ function handleUserRoutes($method, $path) {
             break;
             
         default:
-            ResponseUtil::sendError('User endpoint not found', 404);
+            ResponseUtil::sendError('Auth endpoint not found', 404);
+            break;
     }
-}
-
-function handleGroupRoutes($method, $path) {
-    // Verify JWT token first
-    $headers = getallheaders();
-    $token = $headers['Authorization'] ?? '';
-    $token = str_replace('Bearer ', '', $token);
-    
-    if (empty($token)) {
-        ResponseUtil::sendError('Authorization token required', 401);
-        return;
-    }
-    
-    $jwtUtil = new JWTUtil();
-    $decoded = $jwtUtil->verifyToken($token);
-    
-    if (!$decoded) {
-        ResponseUtil::sendError('Invalid or expired token', 401);
-        return;
-    }
-    
-    // Group routes implementation will go here
-    ResponseUtil::sendError('Group endpoints not implemented yet', 501);
-}
-
-function handleContributionRoutes($method, $path) {
-    // Verify JWT token first
-    $headers = getallheaders();
-    $token = $headers['Authorization'] ?? '';
-    $token = str_replace('Bearer ', '', $token);
-    
-    if (empty($token)) {
-        ResponseUtil::sendError('Authorization token required', 401);
-        return;
-    }
-    
-    $jwtUtil = new JWTUtil();
-    $decoded = $jwtUtil->verifyToken($token);
-    
-    if (!$decoded) {
-        ResponseUtil::sendError('Invalid or expired token', 401);
-        return;
-    }
-    
-    // Contribution routes implementation will go here
-    ResponseUtil::sendError('Contribution endpoints not implemented yet', 501);
-}
-
-function handleLoanRoutes($method, $path) {
-    // Verify JWT token first
-    $headers = getallheaders();
-    $token = $headers['Authorization'] ?? '';
-    $token = str_replace('Bearer ', '', $token);
-    
-    if (empty($token)) {
-        ResponseUtil::sendError('Authorization token required', 401);
-        return;
-    }
-    
-    $jwtUtil = new JWTUtil();
-    $decoded = $jwtUtil->verifyToken($token);
-    
-    if (!$decoded) {
-        ResponseUtil::sendError('Invalid or expired token', 401);
-        return;
-    }
-    
-    // Loan routes implementation will go here
-    ResponseUtil::sendError('Loan endpoints not implemented yet', 501);
 }
 
 function handleProfileRoutes($method, $path) {
-    // Verify JWT token first
+    // Verify JWT token
     $headers = getallheaders();
-    $token = $headers['Authorization'] ?? '';
-    $token = str_replace('Bearer ', '', $token);
+    $authHeader = $headers['Authorization'] ?? '';
     
-    if (empty($token)) {
-        ResponseUtil::sendError('Authorization token required', 401);
+    if (!preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+        ResponseUtil::sendUnauthorized('No token provided');
         return;
     }
     
+    $token = $matches[1];
     $jwtUtil = new JWTUtil();
     $decoded = $jwtUtil->verifyToken($token);
     
     if (!$decoded) {
-        ResponseUtil::sendError('Invalid or expired token', 401);
+        ResponseUtil::sendUnauthorized('Invalid or expired token');
         return;
     }
     
     $userId = $decoded->user_id;
     
-    // Include Profile model
+    // Include Profile model and create database connection
     require_once __DIR__ . '/../models/Profile.php';
-    $profile = new Profile($this->conn ?? null);
+    $database = new Database();
+    $db = $database->getConnection();
+    $profile = new Profile($db);
     
     // Route profile requests
-    switch ($path[1] ?? '') {
+    switch ($path[0] ?? '') {
         case 'notifications':
             if ($method === 'PUT') {
                 $data = json_decode(file_get_contents('php://input'), true);
                 $result = $profile->updateNotificationSettings($userId, $data);
-                echo json_encode($result);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
             } else {
                 ResponseUtil::sendError('Method not allowed', 405);
             }
@@ -358,7 +183,54 @@ function handleProfileRoutes($method, $path) {
             if ($method === 'PUT') {
                 $data = json_decode(file_get_contents('php://input'), true);
                 $result = $profile->updateSecuritySettings($userId, $data);
-                echo json_encode($result);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'pin':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $profile->setPin($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } elseif ($method === 'PUT') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $profile->updatePin($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } elseif ($method === 'DELETE') {
+                $result = $profile->removePin($userId);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'verify-pin':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $profile->verifyPin($userId, $data['pin']);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
             } else {
                 ResponseUtil::sendError('Method not allowed', 405);
             }
@@ -367,7 +239,11 @@ function handleProfileRoutes($method, $path) {
         case 'trust-score':
             if ($method === 'GET') {
                 $result = $profile->getTrustScoreDetails($userId);
-                echo json_encode($result);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
             } else {
                 ResponseUtil::sendError('Method not allowed', 405);
             }
@@ -376,7 +252,11 @@ function handleProfileRoutes($method, $path) {
         case 'awards':
             if ($method === 'GET') {
                 $result = $profile->getAwardsAndAchievements($userId);
-                echo json_encode($result);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
             } else {
                 ResponseUtil::sendError('Method not allowed', 405);
             }
@@ -386,14 +266,352 @@ function handleProfileRoutes($method, $path) {
             // Get complete profile data
             if ($method === 'GET') {
                 $result = $profile->getCompleteProfile($userId);
-                echo json_encode($result);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
             } elseif ($method === 'PUT') {
                 $data = json_decode(file_get_contents('php://input'), true);
                 $result = $profile->updateProfile($userId, $data);
-                echo json_encode($result);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
             } else {
                 ResponseUtil::sendError('Method not allowed', 405);
             }
+            break;
+    }
+}
+
+function handleDashboardRoutes($method, $path) {
+    // Verify JWT token
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? '';
+    
+    if (!preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+        ResponseUtil::sendUnauthorized('No token provided');
+        return;
+    }
+    
+    $token = $matches[1];
+    $jwtUtil = new JWTUtil();
+    $decoded = $jwtUtil->verifyToken($token);
+    
+    if (!$decoded) {
+        ResponseUtil::sendUnauthorized('Invalid or expired token');
+        return;
+    }
+    
+    $userId = $decoded->user_id;
+    
+    if ($method === 'GET') {
+        require_once __DIR__ . '/../models/Dashboard.php';
+        $database = new Database();
+        $db = $database->getConnection();
+        $dashboard = new Dashboard($db);
+        
+        $result = $dashboard->getDashboardData($userId);
+        if ($result['success']) {
+            ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+        } else {
+            ResponseUtil::sendError($result['message'], 400);
+        }
+    } else {
+        ResponseUtil::sendError('Method not allowed', 405);
+    }
+}
+
+function handleGroupRoutes($method, $path) {
+    // Verify JWT token
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? '';
+    
+    if (!preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+        ResponseUtil::sendUnauthorized('No token provided');
+        return;
+    }
+    
+    $token = $matches[1];
+    $jwtUtil = new JWTUtil();
+    $decoded = $jwtUtil->verifyToken($token);
+    
+    if (!$decoded) {
+        ResponseUtil::sendUnauthorized('Invalid or expired token');
+        return;
+    }
+    
+    $userId = $decoded->user_id;
+    
+    require_once __DIR__ . '/../models/Group.php';
+    $database = new Database();
+    $db = $database->getConnection();
+    $group = new Group($db);
+    
+    // Get action from query parameters
+    $action = $_GET['action'] ?? '';
+    
+    switch ($action) {
+        case 'list':
+            if ($method === 'GET') {
+                $result = $group->getUserGroups($userId);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'available':
+            if ($method === 'GET') {
+                $result = $group->getAvailableGroups();
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'create':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $group->createGroup($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'join':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $group->joinGroup($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'leave':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $group->leaveGroup($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'details':
+            if ($method === 'GET') {
+                $groupId = $_GET['group_id'] ?? null;
+                if (!$groupId) {
+                    ResponseUtil::sendError('Group ID is required', 400);
+                    break;
+                }
+                $result = $group->getGroupDetails($groupId);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'members':
+            if ($method === 'GET') {
+                $groupId = $_GET['group_id'] ?? null;
+                if (!$groupId) {
+                    ResponseUtil::sendError('Group ID is required', 400);
+                    break;
+                }
+                $result = $group->getGroupMembers($groupId);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'contribute':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $group->makeContribution($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'withdraw':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $group->requestWithdrawal($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'deposit':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $group->requestDeposit($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'request-loan':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $group->requestLoan($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'loans':
+            if ($method === 'GET') {
+                $groupId = $_GET['group_id'] ?? null;
+                if ($groupId) {
+                    $result = $group->getGroupLoans($groupId);
+                } else {
+                    $result = $group->getUserLoans($userId);
+                }
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'transactions':
+            if ($method === 'GET') {
+                $groupId = $_GET['group_id'] ?? null;
+                if ($groupId) {
+                    $result = $group->getGroupTransactions($groupId);
+                } else {
+                    $result = $group->getUserTransactions($userId);
+                }
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'chat':
+            if ($method === 'GET') {
+                $groupId = $_GET['group_id'] ?? null;
+                if (!$groupId) {
+                    ResponseUtil::sendError('Group ID is required', 400);
+                    break;
+                }
+                $result = $group->getGroupChat($groupId);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'approve-contribution':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $group->approveContribution($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'approve-withdrawal':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $group->approveWithdrawal($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        case 'approve-loan':
+            if ($method === 'POST') {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $result = $group->approveLoan($userId, $data);
+                if ($result['success']) {
+                    ResponseUtil::sendSuccess($result['message'], $result['data'] ?? null);
+                } else {
+                    ResponseUtil::sendError($result['message'], 400);
+                }
+            } else {
+                ResponseUtil::sendError('Method not allowed', 405);
+            }
+            break;
+            
+        default:
+            ResponseUtil::sendError('Group action not found', 404);
             break;
     }
 }

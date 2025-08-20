@@ -7,11 +7,19 @@ class EmailService {
     private $fromName;
     
     public function __construct() {
-        // SMTP2GO Configuration
-        $this->smtp2goApiKey = 'YOUR_SMTP2GO_API_KEY'; // Replace with your actual API key
+        // SMTP2GO Configuration - Update these with your actual credentials
+        $this->smtp2goApiKey = 'api-XXXXXXXXXXXX'; // Replace with your actual SMTP2GO API key
         $this->smtp2goApiUrl = 'https://api.smtp2go.com/v3/email/send';
         $this->fromEmail = 'noreply@micronest.com';
         $this->fromName = 'MicroNest';
+        
+        // For development/testing, you can also use environment variables
+        if (getenv('SMTP2GO_API_KEY')) {
+            $this->smtp2goApiKey = getenv('SMTP2GO_API_KEY');
+        }
+        if (getenv('SMTP2GO_FROM_EMAIL')) {
+            $this->fromEmail = getenv('SMTP2GO_FROM_EMAIL');
+        }
     }
     
     /**

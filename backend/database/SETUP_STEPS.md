@@ -14,7 +14,13 @@ Run this command to add missing columns to the users table:
 source database/fix_users_table.sql;
 ```
 
-### **Step 3: Verify Setup**
+### **Step 3: Create Performance Indexes**
+Run this command to create indexes for better performance:
+```sql
+source database/create_indexes.sql;
+```
+
+### **Step 4: Verify Setup**
 Check if all tables were created successfully:
 ```sql
 SHOW TABLES LIKE '%user%';
@@ -22,7 +28,7 @@ SHOW TABLES LIKE '%trust%';
 SHOW TABLES LIKE '%achievement%';
 ```
 
-### **Step 4: Check Users Table Structure**
+### **Step 5: Check Users Table Structure**
 Verify the users table has all required columns:
 ```sql
 DESCRIBE users;
@@ -33,7 +39,7 @@ You should see these columns:
 - `trust_score` (INT)
 - `profile_completion_percentage` (INT)
 
-## 🔧 **Alternative: Manual Column Addition**
+## 🔧 **Alternative: Manual Setup**
 
 If the prepared statement approach doesn't work, manually add columns:
 
@@ -68,6 +74,12 @@ AND COLUMN_NAME IN ('kyc_status', 'trust_score', 'profile_completion_percentage'
 -- Check sample data
 SELECT * FROM user_achievements LIMIT 5;
 SELECT * FROM user_preferences LIMIT 5;
+
+-- Check indexes
+SELECT TABLE_NAME, INDEX_NAME, COLUMN_NAME 
+FROM INFORMATION_SCHEMA.STATISTICS 
+WHERE TABLE_SCHEMA = DATABASE() 
+AND TABLE_NAME IN ('users', 'user_preferences', 'user_security', 'user_achievements');
 ```
 
 ## 🚨 **Troubleshooting**
@@ -84,6 +96,10 @@ SELECT * FROM user_preferences LIMIT 5;
 - Check your MySQL user permissions
 - Ensure you have ALTER, CREATE, INSERT privileges
 
+### **Error: "Index already exists"**
+- This is normal if indexes were already created
+- The script will skip existing indexes
+
 ## 🎯 **What Gets Created**
 
 1. **user_preferences** - Notification settings
@@ -92,6 +108,7 @@ SELECT * FROM user_preferences LIMIT 5;
 4. **trust_score_history** - Score changes
 5. **user_profile_extensions** - Extended profile data
 6. **Updated users table** - New columns for KYC, trust score, completion
+7. **Performance indexes** - For faster queries
 
 ## 🚀 **Next Steps**
 
@@ -103,4 +120,4 @@ After database setup:
 
 ---
 
-**🎉 Database setup complete! Your profile system is ready to use.** 
+**🎉 Database setup complete! Your profile system is ready to use.**

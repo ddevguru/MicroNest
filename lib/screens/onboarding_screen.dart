@@ -226,7 +226,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                                     );
                                   } else {
                                     // Navigate to the second onboarding screen
-                                    Navigator.pushReplacementNamed(context, '/onboarding-second');
+                                    Navigator.pushReplacementNamed(context, '/onboarding_second');
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
@@ -275,7 +275,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                                 );
                               } else {
                                 // Navigate to the second onboarding screen
-                                Navigator.pushReplacementNamed(context, '/onboarding-second');
+                                Navigator.pushReplacementNamed(context, '/onboarding_second');
                               }
                             },
                             style: ElevatedButton.styleFrom(

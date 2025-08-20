@@ -4,7 +4,7 @@ import 'package:micronest/services/auth_service.dart';
 
 class DashboardService {
   static const String baseUrl = 'https://micronest.devloperwala.in/micronest/backend/api';
-  static const String dashboardEndpoint = '/dashboard.php';
+  static const String dashboardEndpoint = '/dashboard';
   
   static final http.Client _client = http.Client();
 

@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
-import 'screens/video_page.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/onboarding_second_screen.dart';
+import 'screens/video_page.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/home_dashboard.dart';
 import 'screens/profile_screen.dart';
+import 'screens/biometric_lock_screen.dart';
+import 'screens/pin_lock_screen.dart';
+import 'screens/groups_screen.dart';
+import 'screens/create_group_screen.dart';
+import 'screens/join_group_screen.dart';
+import 'screens/group_details_screen.dart';
+import 'screens/request_loan_screen.dart';
+import 'screens/withdraw_funds_screen.dart';
+import 'screens/transactions_screen.dart';
 
 void main() {
-  runApp(const MicroNestApp());
+  runApp(const MyApp());
 }
 
-class MicroNestApp extends StatelessWidget {
-  const MicroNestApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -22,70 +31,35 @@ class MicroNestApp extends StatelessWidget {
       title: 'MicroNest',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF4CAF50),
-          secondary: Color(0xFF66BB6A),
-          surface: Color(0xFF1A1A1A),
-          background: Color(0xFF0A0A0A),
-          onPrimary: Colors.white,
-          onSecondary: Colors.white,
-          onSurface: Colors.white,
-          onBackground: Colors.white,
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
-        fontFamily: 'Inter',
-        scaffoldBackgroundColor: const Color(0xFF0A0A0A),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          foregroundColor: Colors.white,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            elevation: 0,
-            backgroundColor: const Color(0xFF4CAF50),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-        ),
-        cardTheme: CardThemeData(
-          color: Colors.white.withOpacity(0.1),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-        textTheme: const TextTheme(
-          headlineLarge: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-          headlineMedium: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-          bodyLarge: TextStyle(
-            color: Colors.white,
-          ),
-          bodyMedium: TextStyle(
-            color: Color(0xFFB0B0B0),
-          ),
-        ),
       ),
-      home: const SplashScreen(),
+      initialRoute: '/',
       routes: {
+        '/': (context) => const SplashScreen(),
         '/video': (context) => const VideoPage(),
         '/onboarding': (context) => const OnboardingScreen(),
-        '/onboarding-second': (context) => const OnboardingSecondScreen(),
+        '/onboarding_second': (context) => const OnboardingSecondScreen(),
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignupScreen(),
-        '/forgot-password': (context) => const ForgotPasswordScreen(),
+        '/forgot_password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeDashboard(),
         '/profile': (context) => const ProfileScreen(),
-        // Add more routes as you create other screens
-        // '/registration': (context) => const RegistrationScreen(),
+        '/biometric_lock': (context) => BiometricLockScreen(
+          onSuccess: () {
+            Navigator.of(context).pushReplacementNamed('/home');
+          },
+        ),
+        '/pin_lock': (context) => PinLockScreen(
+          onSuccess: () {
+            Navigator.of(context).pushReplacementNamed('/home');
+          },
+        ),
+        '/groups': (context) => const GroupsScreen(),
+        '/create-group': (context) => const CreateGroupScreen(),
+        '/request-loan': (context) => const RequestLoanScreen(),
+        '/withdraw-funds': (context) => const WithdrawFundsScreen(),
+        '/transactions': (context) => const TransactionsScreen(),
       },
     );
   }

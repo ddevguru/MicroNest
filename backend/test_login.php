@@ -25,11 +25,11 @@ try {
         ResponseUtil::sendError('Invalid JSON input', 400);
     }
     
-    $action = $data['action'] ?? '';
     $email = $data['email'] ?? '';
+    $password = $data['password'] ?? '';
     
-    if (empty($action) || empty($email)) {
-        ResponseUtil::sendError('Action and email are required', 400);
+    if (empty($email) || empty($password)) {
+        ResponseUtil::sendError('Email and password are required', 400);
     }
     
     // Test database connection
@@ -42,29 +42,12 @@ try {
     
     // Test Auth class
     $auth = new Auth($db);
+    $result = $auth->login($data);
     
-    switch ($action) {
-        case 'send-otp':
-            $result = $auth->sendEmailOTP($email);
-            echo json_encode($result);
-            break;
-            
-        case 'verify-otp':
-            $otp = $data['otp'] ?? '';
-            if (empty($otp)) {
-                ResponseUtil::sendError('OTP is required for verification', 400);
-            }
-            $result = $auth->verifyEmailOTP($email, $otp);
-            echo json_encode($result);
-            break;
-            
-        default:
-            ResponseUtil::sendError('Invalid action. Use "send-otp" or "verify-otp"', 400);
-            break;
-    }
+    echo json_encode($result);
     
 } catch (Exception $e) {
-    error_log("Test OTP error: " . $e->getMessage());
+    error_log("Test login error: " . $e->getMessage());
     ResponseUtil::sendError('Test failed: ' . $e->getMessage(), 500);
 }
 ?> 

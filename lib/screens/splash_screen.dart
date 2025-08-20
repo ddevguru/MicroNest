@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../services/auth_service.dart';
+import '../services/biometric_service.dart';
+import '../services/profile_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -90,15 +92,67 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(seconds: 3)); // Show splash for 3 seconds
     
     if (mounted) {
-      // Check login status
-      bool isLoggedIn = await AuthService.isLoggedIn();
+      await _checkAuthenticationAndNavigate();
+    }
+  }
+
+  Future<void> _checkAuthenticationAndNavigate() async {
+    try {
+      // Check if user is logged in
+      final isLoggedIn = await AuthService.isLoggedIn();
       
-      if (isLoggedIn) {
-        // User is already logged in, go directly to home
-        Navigator.pushReplacementNamed(context, '/home');
+      if (!isLoggedIn) {
+        // User not logged in, go to onboarding
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/video');
+        }
+        return;
+      }
+      
+      // User is logged in, check if biometric authentication is enabled
+      final isBiometricEnabled = await BiometricService.isBiometricEnabled();
+      
+      if (isBiometricEnabled) {
+        // Check if biometric authentication is available
+        final isBiometricAvailable = await BiometricService.isBiometricAvailable();
+        
+        if (isBiometricAvailable) {
+          // Redirect to biometric lock screen
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/biometric_lock');
+          }
+        } else {
+          // Biometric not available but enabled, go to home (maybe show warning)
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/home');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Biometric authentication is enabled but not available on this device'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
       } else {
-        // User is not logged in, go to video/onboarding flow
-        Navigator.pushReplacementNamed(context, '/video');
+        // Check if PIN is enabled
+        final isPinEnabled = await ProfileService.isPinSet();
+        
+        if (isPinEnabled) {
+          // Redirect to PIN lock screen
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/pin_lock');
+          }
+        } else {
+          // No authentication required, go directly to home
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/home');
+          }
+        }
+      }
+    } catch (e) {
+      // Error occurred, go to login to be safe
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
       }
     }
   }
@@ -146,8 +200,8 @@ class _SplashScreenState extends State<SplashScreen>
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // μN Icon with enhanced glassmorphism effect
-                              AnimatedBuilder(
+                              // μN Icon with enhanced glassmorphism effect and loading states
+                              _glowAnimation != null ? AnimatedBuilder(
                                 animation: _glowAnimation,
                                 builder: (context, child) {
                                   return Container(
@@ -198,6 +252,52 @@ class _SplashScreenState extends State<SplashScreen>
                                     ),
                                   );
                                 },
+                              ) : Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      const Color(0xFF40916C).withOpacity(0.3),
+                                      const Color(0xFF2D6A4F).withOpacity(0.2),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(
+                                    color: const Color(0xFF52B788).withOpacity(0.4),
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF40916C).withOpacity(0.4),
+                                      blurRadius: 30,
+                                      spreadRadius: 5,
+                                    ),
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.3),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    'μN',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.bold,
+                                      shadows: [
+                                        Shadow(
+                                          color: Color(0xFF40916C),
+                                          blurRadius: 10,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
                               
                               const SizedBox(height: 40),

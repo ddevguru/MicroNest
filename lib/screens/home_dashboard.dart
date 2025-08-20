@@ -784,6 +784,17 @@ class _HomeDashboardState extends State<HomeDashboard> with TickerProviderStateM
           onTap: () {
             // Add subtle tap animation and haptic feedback
             HapticFeedback.lightImpact();
+            
+            // Navigate based on button title
+            if (title.contains('Join/Create')) {
+              Navigator.pushNamed(context, '/groups');
+            } else if (title.contains('Request')) {
+              Navigator.pushNamed(context, '/request-loan');
+            } else if (title.contains('Withdraw')) {
+              Navigator.pushNamed(context, '/withdraw-funds');
+            } else if (title.contains('View')) {
+              Navigator.pushNamed(context, '/transactions');
+            }
           },
           borderRadius: BorderRadius.circular(20),
           onHover: (isHovered) {

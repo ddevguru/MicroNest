@@ -9,20 +9,35 @@ class Auth {
     private $jwtUtil;
     private $emailService;
     
-    public function __construct() {
-        $database = new Database();
-        $this->conn = $database->getConnection();
+    public function __construct($db = null) {
+        if ($db) {
+            $this->conn = $db;
+        } else {
+            $database = new Database();
+            $this->conn = $database->getConnection();
+        }
         $this->jwtUtil = new JWTUtil();
         $this->emailService = new EmailService();
     }
     
-    public function login($email, $password) {
+    public function login($data) {
         try {
             error_log("=== LOGIN START ===");
+            
+            // Extract email and password from data array
+            $email = $data['email'] ?? '';
+            $password = $data['password'] ?? '';
+            
             error_log("Email: $email");
             
+            // Validate input
+            if (empty($email) || empty($password)) {
+                error_log("Missing email or password");
+                return ResponseUtil::error('Email and password are required', 400);
+            }
+            
             // Check if user exists and email is verified
-            $query = "SELECT id, full_name, email, username, password_hash, email_verified, status, trust_score 
+            $query = "SELECT id, full_name, email, username, password_hash, email_verified, status, trust_score, phone, address, profile_image, email_verified_at, created_at, updated_at 
                      FROM users WHERE email = ? AND status = 'active'";
             $stmt = $this->conn->prepare($query);
             $stmt->execute([$email]);

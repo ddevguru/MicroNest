@@ -32,6 +32,20 @@ class JWTUtil {
         return $this->encode($payload);
     }
     
+    public function verifyToken($token) {
+        try {
+            $decoded = $this->decode($token);
+            
+            if ($decoded->exp < time()) {
+                return false;
+            }
+            
+            return $decoded;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
     public function verifyAccessToken($token) {
         try {
             $decoded = $this->decode($token);

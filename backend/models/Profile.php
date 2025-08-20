@@ -51,7 +51,7 @@ class Profile {
     private function getUserInfo($userId) {
         try {
             $query = "SELECT id, email, username, full_name, phone, trust_score, 
-                             email_verified, kyc_status, created_at, updated_at
+                             email_verified, kyc_status, profile_image, created_at, updated_at
                       FROM users WHERE id = ?";
             
             $stmt = $this->conn->prepare($query);
@@ -426,7 +426,7 @@ class Profile {
     // Update notification settings
     public function updateNotificationSettings($userId, $data) {
         try {
-            $allowedFields = ['push_notifications', 'loan_reminders', 'group_chat'];
+            $allowedFields = ['push_notifications', 'email_notifications', 'sms_notifications', 'loan_reminders', 'group_chat'];
             $updateFields = [];
             $updateValues = [];
             
@@ -438,7 +438,7 @@ class Profile {
             }
             
             if (empty($updateFields)) {
-                return ResponseUtil::error('No valid notification settings to update', 400);
+                return ResponseUtil::error('No valid fields to update', 400);
             }
             
             // Check if user preferences exist
@@ -448,17 +448,26 @@ class Profile {
             
             if ($stmt->rowCount() > 0) {
                 // Update existing preferences
-                $updateValues[] = $userId;
                 $query = "UPDATE user_preferences SET " . implode(', ', $updateFields) . " WHERE user_id = ?";
+                $updateValues[] = $userId;
+                $stmt = $this->conn->prepare($query);
+                $stmt->execute($updateValues);
             } else {
                 // Insert new preferences
-                $updateValues[] = $userId;
-                $query = "INSERT INTO user_preferences (" . implode(', ', $allowedFields) . ", user_id) VALUES (" . 
-                        str_repeat('?,', count($allowedFields) - 1) . "?, ?)";
+                $fieldNames = array_merge($allowedFields, ['user_id']);
+                $placeholders = str_repeat('?,', count($allowedFields) - 1) . '?, ?';
+                $query = "INSERT INTO user_preferences (" . implode(', ', $fieldNames) . ") VALUES ($placeholders)";
+                
+                // Set default values for missing fields
+                $insertValues = [];
+                foreach ($allowedFields as $field) {
+                    $insertValues[] = isset($data[$field]) ? ($data[$field] ? 1 : 0) : 0;
+                }
+                $insertValues[] = $userId;
+                
+                $stmt = $this->conn->prepare($query);
+                $stmt->execute($insertValues);
             }
-            
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute($updateValues);
             
             return ResponseUtil::success('Notification settings updated successfully');
             
@@ -471,7 +480,7 @@ class Profile {
     // Update security settings
     public function updateSecuritySettings($userId, $data) {
         try {
-            $allowedFields = ['biometric_login', 'pin_enabled'];
+            $allowedFields = ['biometric_login', 'pin_enabled', 'two_factor_auth'];
             $updateFields = [];
             $updateValues = [];
             
@@ -483,7 +492,7 @@ class Profile {
             }
             
             if (empty($updateFields)) {
-                return ResponseUtil::error('No valid security settings to update', 400);
+                return ResponseUtil::error('No valid fields to update', 400);
             }
             
             // Check if user security settings exist
@@ -492,24 +501,164 @@ class Profile {
             $stmt->execute([$userId]);
             
             if ($stmt->rowCount() > 0) {
-                // Update existing settings
-                $updateValues[] = $userId;
+                // Update existing security settings
                 $query = "UPDATE user_security SET " . implode(', ', $updateFields) . " WHERE user_id = ?";
-            } else {
-                // Insert new settings
                 $updateValues[] = $userId;
-                $query = "INSERT INTO user_security (" . implode(', ', $allowedFields) . ", user_id) VALUES (" . 
-                        str_repeat('?,', count($allowedFields) - 1) . "?, ?)";
+                $stmt = $this->conn->prepare($query);
+                $stmt->execute($updateValues);
+            } else {
+                // Insert new security settings
+                $fieldNames = array_merge($allowedFields, ['user_id']);
+                $placeholders = str_repeat('?,', count($allowedFields) - 1) . '?, ?';
+                $query = "INSERT INTO user_security (" . implode(', ', $fieldNames) . ") VALUES ($placeholders)";
+                
+                // Set default values for missing fields
+                $insertValues = [];
+                foreach ($allowedFields as $field) {
+                    $insertValues[] = isset($data[$field]) ? ($data[$field] ? 1 : 0) : 0;
+                }
+                $insertValues[] = $userId;
+                
+                $stmt = $this->conn->prepare($query);
+                $stmt->execute($insertValues);
             }
-            
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute($updateValues);
             
             return ResponseUtil::success('Security settings updated successfully');
             
         } catch (Exception $e) {
             error_log("Profile updateSecuritySettings Error: " . $e->getMessage());
             return ResponseUtil::error('Failed to update security settings: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    // Set new PIN
+    public function setPin($userId, $data) {
+        try {
+            if (!isset($data['pin']) || strlen($data['pin']) !== 4 || !is_numeric($data['pin'])) {
+                return ResponseUtil::error('PIN must be a 4-digit number', 400);
+            }
+            
+            $hashedPin = password_hash($data['pin'], PASSWORD_DEFAULT);
+            
+            // Check if user security settings exist
+            $query = "SELECT id FROM user_security WHERE user_id = ?";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute([$userId]);
+            
+            if ($stmt->rowCount() > 0) {
+                // Update existing PIN
+                $query = "UPDATE user_security SET pin_hash = ?, pin_enabled = 1 WHERE user_id = ?";
+                $stmt = $this->conn->prepare($query);
+                $stmt->execute([$hashedPin, $userId]);
+            } else {
+                // Insert new PIN
+                $query = "INSERT INTO user_security (user_id, pin_hash, pin_enabled) VALUES (?, ?, 1)";
+                $stmt = $this->conn->prepare($query);
+                $stmt->execute([$userId, $hashedPin]);
+            }
+            
+            return ResponseUtil::success('PIN set successfully');
+            
+        } catch (Exception $e) {
+            error_log("Profile setPin Error: " . $e->getMessage());
+            return ResponseUtil::error('Failed to set PIN: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    // Update existing PIN
+    public function updatePin($userId, $data) {
+        try {
+            if (!isset($data['current_pin']) || !isset($data['new_pin'])) {
+                return ResponseUtil::error('Current PIN and new PIN are required', 400);
+            }
+            
+            if (strlen($data['new_pin']) !== 4 || !is_numeric($data['new_pin'])) {
+                return ResponseUtil::error('New PIN must be a 4-digit number', 400);
+            }
+            
+            // Get current PIN hash
+            $query = "SELECT pin_hash FROM user_security WHERE user_id = ?";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute([$userId]);
+            
+            if ($stmt->rowCount() === 0) {
+                return ResponseUtil::error('PIN not set for this user', 400);
+            }
+            
+            $currentPinHash = $stmt->fetch(PDO::FETCH_ASSOC)['pin_hash'];
+            
+            // Verify current PIN
+            if (!password_verify($data['current_pin'], $currentPinHash)) {
+                return ResponseUtil::error('Current PIN is incorrect', 400);
+            }
+            
+            // Hash new PIN and update
+            $newPinHash = password_hash($data['new_pin'], PASSWORD_DEFAULT);
+            $query = "UPDATE user_security SET pin_hash = ? WHERE user_id = ?";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute([$newPinHash, $userId]);
+            
+            return ResponseUtil::success('PIN updated successfully');
+            
+        } catch (Exception $e) {
+            error_log("Profile updatePin Error: " . $e->getMessage());
+            return ResponseUtil::error('Failed to update PIN: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    // Remove PIN
+    public function removePin($userId) {
+        try {
+            $query = "UPDATE user_security SET pin_hash = NULL, pin_enabled = 0 WHERE user_id = ?";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute([$userId]);
+            
+            return ResponseUtil::success('PIN removed successfully');
+            
+        } catch (Exception $e) {
+            error_log("Profile removePin Error: " . $e->getMessage());
+            return ResponseUtil::error('Failed to remove PIN: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    // Check if PIN is set
+    public function isPinSet($userId) {
+        try {
+            $query = "SELECT pin_enabled FROM user_security WHERE user_id = ? AND pin_enabled = 1 AND pin_hash IS NOT NULL";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute([$userId]);
+            
+            return $stmt->rowCount() > 0;
+            
+        } catch (Exception $e) {
+            error_log("Profile isPinSet Error: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // Verify PIN
+    public function verifyPin($userId, $pin) {
+        try {
+            $query = "SELECT pin_hash FROM user_security WHERE user_id = ? AND pin_enabled = 1";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute([$userId]);
+            
+            if ($stmt->rowCount() === 0) {
+                return ResponseUtil::error('PIN not set for this user', 400);
+            }
+            
+            $pinHash = $stmt->fetch(PDO::FETCH_ASSOC)['pin_hash'];
+            $isValid = password_verify($pin, $pinHash);
+            
+            if ($isValid) {
+                return ResponseUtil::success('PIN verified successfully');
+            } else {
+                return ResponseUtil::error('Invalid PIN', 400);
+            }
+            
+        } catch (Exception $e) {
+            error_log("Profile verifyPin Error: " . $e->getMessage());
+            return ResponseUtil::error('Failed to verify PIN: ' . $e->getMessage(), 500);
         }
     }
 }
