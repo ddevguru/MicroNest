@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../services/auth_service.dart';
+import '../services/image_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -24,9 +26,12 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
   final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
+  final _otpController = TextEditingController(); // Added for OTP input
   
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  bool _isEmailVerified = false;
+  bool _isOtpSent = false;
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
 
@@ -83,6 +88,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
     _passwordController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _otpController.dispose(); // Dispose OTP controller
     super.dispose();
   }
 
@@ -310,8 +316,129 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
     );
   }
 
+  Future<void> _sendEmailOtp() async {
+    if (_emailController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your email first'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print('Sending OTP to: ${_emailController.text}');
+      final result = await AuthService.sendEmailOtp(_emailController.text);
+      print('OTP Result: $result');
+      
+      if (result['success'] == true) {
+        setState(() {
+          _isOtpSent = true;
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'OTP sent successfully!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to send OTP'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error sending OTP: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _verifyEmailOtp() async {
+    if (_otpController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter the OTP'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print('Verifying OTP: ${_otpController.text} for email: ${_emailController.text}');
+      final result = await AuthService.verifyEmailOtp(_emailController.text, _otpController.text);
+      print('Verify OTP Result: $result');
+      
+      if (result['success'] == true) {
+        setState(() {
+          _isEmailVerified = true;
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Email verified successfully!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'OTP verification failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error verifying OTP: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
+    
     if (_profileImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -322,21 +449,257 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
       return;
     }
 
+    if (!_isEmailVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please verify your email first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Convert image to base64
+      final imageBase64 = await ImageService.imageToBase64(_profileImage!);
+      
+      final result = await AuthService.signup(
+        fullName: _fullNameController.text.trim(),
+        email: _emailController.text.trim(),
+        username: _usernameController.text.trim(),
+        password: _passwordController.text,
+        phone: _phoneController.text.trim(),
+        address: _addressController.text.trim(),
+        profileImageBase64: imageBase64,
+      );
 
-    setState(() {
-      _isLoading = false;
-    });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
 
-    // Navigate to home on successful signup
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/home');
+        if (result['success'] == true) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${result['message']} Please login with your credentials.'),
+              backgroundColor: const Color(0xFF52B788),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+
+          // Clear form data
+          _clearForm();
+          
+          // Show success dialog and then redirect to login
+          if (mounted) {
+            await _showSuccessDialog();
+          }
+        } else {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message']),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'Dismiss',
+                textColor: Colors.white,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An unexpected error occurred: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
+  }
+
+  void _clearForm() {
+    _fullNameController.clear();
+    _emailController.clear();
+    _usernameController.clear();
+    _passwordController.clear();
+    _phoneController.clear();
+    _addressController.clear();
+    _otpController.clear();
+    _profileImage = null;
+    
+    // Reset OTP verification state
+    setState(() {
+      _isEmailVerified = false;
+      _isOtpSent = false;
+    });
+  }
+
+  Future<void> _showSuccessDialog() async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color: Color(0xFF52B788),
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Account Created!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Your account has been created successfully! You can now login with your email and password.',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: Colors.orange.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.lightbulb_outline,
+                      color: Colors.orange,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Tip: Use the same password you just created',
+                        style: TextStyle(
+                          color: Colors.orange.withOpacity(0.8),
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF52B788).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF52B788).withOpacity(0.3),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.email,
+                          color: Color(0xFF52B788),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Email: ${_emailController.text.trim()}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.person,
+                          color: Color(0xFF52B788),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Username: ${_usernameController.text.trim()}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.pushReplacementNamed(context, '/login'); // Navigate to login
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF52B788),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Go to Login',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -536,22 +899,149 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                           
                           const SizedBox(height: 20),
                           
-                          // Email Field
-                          _buildFormField(
-                            controller: _emailController,
-                            hintText: 'Enter your email',
-                            prefixIcon: Icons.email_outlined,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your email';
-                              }
-                              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                                return 'Please enter a valid email';
-                              }
-                              return null;
-                            },
+                          // Email Field with Verification
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildFormField(
+                                  controller: _emailController,
+                                  hintText: 'Enter your email',
+                                  prefixIcon: Icons.email_outlined,
+                                  keyboardType: TextInputType.emailAddress,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Please enter your email';
+                                    }
+                                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                                      return 'Please enter a valid email';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                height: 56,
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : (_isOtpSent ? _verifyEmailOtp : _sendEmailOtp),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _isOtpSent 
+                                        ? const Color(0xFF52B788)
+                                        : const Color(0xFFFF8A65),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  child: _isLoading 
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          ),
+                                        )
+                                      : Text(
+                                          _isOtpSent ? 'Verify' : 'Send OTP',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
                           ),
+                          
+                          // Email verification status
+                          if (_isOtpSent)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _isEmailVerified 
+                                        ? Icons.check_circle 
+                                        : Icons.pending,
+                                    color: _isEmailVerified 
+                                        ? const Color(0xFF52B788)
+                                        : const Color(0xFFFF8A65),
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _isEmailVerified 
+                                        ? 'Email verified successfully'
+                                        : 'OTP sent. Please verify your email.',
+                                    style: TextStyle(
+                                      color: _isEmailVerified 
+                                          ? const Color(0xFF52B788)
+                                          : const Color(0xFFFF8A65),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          
+                          // OTP Input Field (only show when OTP is sent and not verified)
+                          if (_isOtpSent && !_isEmailVerified)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16.0),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildFormField(
+                                      controller: _otpController,
+                                      hintText: 'Enter 6-digit OTP',
+                                      prefixIcon: Icons.security,
+                                      keyboardType: TextInputType.number,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please enter OTP';
+                                        }
+                                        if (value.length != 6) {
+                                          return 'OTP must be 6 digits';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Container(
+                                    height: 56,
+                                    child: ElevatedButton(
+                                      onPressed: _isLoading ? null : _verifyEmailOtp,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF52B788),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                      ),
+                                      child: _isLoading 
+                                          ? const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Verify OTP',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           
                           const SizedBox(height: 20),
                           

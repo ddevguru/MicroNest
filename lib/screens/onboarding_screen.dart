@@ -18,6 +18,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
   Animation<double>? _glowAnimation;
   Animation<double>? _starAnimation;
 
+  // Loading states for Lottie animations
+  final Map<int, bool> _lottieLoadingStates = {};
+  final Map<int, bool> _lottieErrorStates = {};
+
   final List<OnboardingPage> _pages = [
     OnboardingPage(
       title: 'Welcome to MicroNest',
@@ -45,6 +49,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
   @override
   void initState() {
     super.initState();
+    
+    // Initialize loading states
+    for (int i = 0; i < _pages.length; i++) {
+      _lottieLoadingStates[i] = true;
+      _lottieErrorStates[i] = false;
+    }
     
     _glowController = AnimationController(
       duration: const Duration(milliseconds: 2500),
@@ -92,6 +102,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
     super.dispose();
   }
 
+  // Handle Lottie loading state
+  void _onLottieLoading(int pageIndex, bool isLoading) {
+    if (mounted) {
+      setState(() {
+        _lottieLoadingStates[pageIndex] = isLoading;
+      });
+    }
+  }
+
+  // Handle Lottie error state
+  void _onLottieError(int pageIndex, bool hasError) {
+    if (mounted) {
+      setState(() {
+        _lottieErrorStates[pageIndex] = hasError;
+        _lottieLoadingStates[pageIndex] = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -128,7 +157,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                       },
                       itemCount: _pages.length,
                       itemBuilder: (context, index) {
-                        return _buildPage(_pages[index]);
+                        return _buildPage(_pages[index], index);
                       },
                     ),
                   ),
@@ -280,13 +309,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
     );
   }
 
-    Widget _buildPage(OnboardingPage page) {
+  Widget _buildPage(OnboardingPage page, int pageIndex) {
     return Padding(
       padding: const EdgeInsets.all(40.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Lottie animation with enhanced glassmorphism effect
+          // Lottie animation with enhanced glassmorphism effect and loading states
           _glowAnimation != null ? AnimatedBuilder(
             animation: _glowAnimation!,
             builder: (context, child) {
@@ -320,25 +349,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                     ),
                   ],
                 ),
-                child: page.lottieUrl != null
-                    ? Lottie.network(
-                        page.lottieUrl!,
-                        width: 140,
-                        height: 140,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            page.icon,
-                            size: 80,
-                            color: page.color,
-                          );
-                        },
-                      )
-                    : Icon(
-                        page.icon,
-                        size: 80,
-                        color: page.color,
-                      ),
+                child: _buildLottieContent(page, pageIndex),
               );
             },
           ) : Container(
@@ -371,25 +382,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                 ),
               ],
             ),
-            child: page.lottieUrl != null
-                ? Lottie.network(
-                    page.lottieUrl!,
-                    width: 140,
-                    height: 140,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Icon(
-                        page.icon,
-                        size: 80,
-                        color: page.color,
-                      );
-                    },
-                  )
-                : Icon(
-                    page.icon,
-                    size: 80,
-                    color: page.color,
-                  ),
+            child: _buildLottieContent(page, pageIndex),
           ),
           
           const SizedBox(height: 50),
@@ -431,11 +424,87 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
     );
   }
 
-
-
-
-
-
+  Widget _buildLottieContent(OnboardingPage page, int pageIndex) {
+    if (page.lottieUrl != null) {
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          // Lottie animation
+          Lottie.network(
+            page.lottieUrl!,
+            width: 140,
+            height: 140,
+            fit: BoxFit.contain,
+            onLoaded: (composition) {
+              _onLottieLoading(pageIndex, false);
+            },
+            errorBuilder: (context, error, stackTrace) {
+              _onLottieError(pageIndex, true);
+              return const SizedBox.shrink();
+            },
+          ),
+          
+          // Loading indicator
+          if (_lottieLoadingStates[pageIndex] == true)
+            Container(
+              width: 140,
+              height: 140,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(page.color),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Loading...',
+                    style: TextStyle(
+                      color: page.color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
+          // Error fallback
+          if (_lottieErrorStates[pageIndex] == true)
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  page.icon,
+                  size: 60,
+                  color: page.color,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Animation\nUnavailable',
+                  style: TextStyle(
+                    color: page.color,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+        ],
+      );
+    } else {
+      return Icon(
+        page.icon,
+        size: 80,
+        color: page.color,
+      );
+    }
+  }
 
   Widget _buildSafeBackground() {
     if (_starAnimation == null) {

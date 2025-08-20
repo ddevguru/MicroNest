@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -85,11 +86,20 @@ class _SplashScreenState extends State<SplashScreen>
     _starController.repeat(reverse: true);
     _glowController.repeat(reverse: true);
     
-    // Auto-navigate after 6 seconds
-    await Future.delayed(const Duration(seconds: 6));
+    // Check if user is already logged in
+    await Future.delayed(const Duration(seconds: 3)); // Show splash for 3 seconds
+    
     if (mounted) {
-      // Navigate to video page
-      Navigator.pushReplacementNamed(context, '/video');
+      // Check login status
+      bool isLoggedIn = await AuthService.isLoggedIn();
+      
+      if (isLoggedIn) {
+        // User is already logged in, go directly to home
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        // User is not logged in, go to video/onboarding flow
+        Navigator.pushReplacementNamed(context, '/video');
+      }
     }
   }
 

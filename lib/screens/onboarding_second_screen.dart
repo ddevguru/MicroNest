@@ -82,8 +82,8 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
         ),
         child: Stack(
           children: [
-            // Background with organic shapes and flowing elements
-            _buildSafeBackground(),
+            // Simplified background
+            _buildSimpleBackground(),
             
             // Main content
             SafeArea(
@@ -93,7 +93,7 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
                   children: [
                     const SizedBox(height: 40),
                     
-                    // μN Icon with enhanced glassmorphism effect
+                    // μN Icon with simplified glassmorphism effect
                     AnimatedBuilder(
                       animation: _glowAnimation,
                       builder: (context, child) {
@@ -105,25 +105,20 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                const Color(0xFF40916C).withOpacity(0.3),
-                                const Color(0xFF2D6A4F).withOpacity(0.2),
+                                const Color(0xFF40916C).withOpacity(0.2),
+                                const Color(0xFF2D6A4F).withOpacity(0.1),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: const Color(0xFF52B788).withOpacity(0.4),
-                              width: 2,
+                              color: const Color(0xFF52B788).withOpacity(0.3),
+                              width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF40916C).withOpacity(0.4 + (_glowAnimation.value * 0.3)),
-                                blurRadius: 30 + (_glowAnimation.value * 20),
-                                spreadRadius: 5 + (_glowAnimation.value * 5),
-                              ),
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
+                                color: const Color(0xFF40916C).withOpacity(0.2),
                                 blurRadius: 20,
-                                offset: const Offset(0, 10),
+                                spreadRadius: 2,
                               ),
                             ],
                           ),
@@ -134,12 +129,6 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
                                 color: Colors.white,
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
-                                shadows: [
-                                  Shadow(
-                                    color: Color(0xFF40916C),
-                                    blurRadius: 10,
-                                  ),
-                                ],
                               ),
                             ),
                           ),
@@ -157,12 +146,6 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
-                        shadows: [
-                          Shadow(
-                            color: Color(0xFF40916C),
-                            blurRadius: 15,
-                          ),
-                        ],
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -171,7 +154,7 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
                     
                     // Description
                     const Text(
-                      'Join trusted savings circles, build your financial future, and help your community grow together.',
+                      'Join trusted savings circles and build your financial future together.',
                       style: TextStyle(
                         color: Color(0xFF95D5B2),
                         fontSize: 16,
@@ -184,48 +167,66 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
                     
                     const SizedBox(height: 40),
                     
-                    // Feature Cards
+                    // Simplified Feature Cards
                     _buildFeatureCard(
                       icon: Icons.group,
                       title: 'Community-driven savings',
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF52B788), Color(0xFF40916C)],
-                      ),
+                      description: 'Join trusted groups and save together',
+                      color: const Color(0xFF52B788),
                     ),
                     
                     const SizedBox(height: 16),
                     
                     _buildFeatureCard(
                       icon: Icons.security,
-                      title: 'Blockchain-secured transactions',
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF8A65), Color(0xFFFF7043)],
-                      ),
+                      title: 'Secure transactions',
+                      description: 'Blockchain-secured and transparent',
+                      color: const Color(0xFFFF8A65),
                     ),
                     
                     const SizedBox(height: 16),
                     
                     _buildFeatureCard(
                       icon: Icons.flash_on,
-                      title: 'Instant micro-loans',
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFE1BEE7), Color(0xFFCE93D8)],
-                      ),
+                      title: 'Quick access to loans',
+                      description: 'Get micro-loans when you need them',
+                      color: const Color(0xFFE1BEE7),
                     ),
                     
                     const SizedBox(height: 40),
                     
-                    // Statistics Section
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildStatistic('5K+', 'Active Users'),
-                        _buildStatistic('\$2M+', 'Saved Together'),
-                        _buildStatistic('98%', 'Success Rate'),
-                      ],
-                    ),
+                    // Simplified Statistics Section
+                    // Container(
+                    //   padding: const EdgeInsets.all(20),
+                    //   decoration: BoxDecoration(
+                    //     color: Colors.white.withOpacity(0.05),
+                    //     borderRadius: BorderRadius.circular(16),
+                    //     border: Border.all(
+                    //       color: Colors.white.withOpacity(0.1),
+                    //       width: 1,
+                    //     ),
+                    //   ),
+                    //   child: Row(
+                    //     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    //     children: [
+                    //       _buildSimpleStatistic('5K+', 'Users'),
+                    //       Container(
+                    //         width: 1,
+                    //         height: 40,
+                    //         color: Colors.white.withOpacity(0.2),
+                    //       ),
+                    //       _buildSimpleStatistic('\$2M+', 'Saved'),
+                    //       Container(
+                    //         width: 1,
+                    //         height: 40,
+                    //         color: Colors.white.withOpacity(0.2),
+                    //       ),
+                    //       _buildSimpleStatistic('98%', 'Success'),
+                    //     ],
+                    //   ),
+                    // ),
                     
-                    const SizedBox(height: 50),
+                    // const SizedBox(height: 50),
                     
                     // Get Started Button
                     Container(
@@ -238,8 +239,8 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
                         borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF52B788).withOpacity(0.4),
-                            blurRadius: 20,
+                            color: const Color(0xFF52B788).withOpacity(0.3),
+                            blurRadius: 15,
                             spreadRadius: 2,
                           ),
                         ],
@@ -255,25 +256,14 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
                             borderRadius: BorderRadius.circular(28),
                           ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'Get Started',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.arrow_upward,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ],
+                        child: const Text(
+                          'Get Started',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
                     ),
@@ -285,16 +275,15 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
                       width: double.infinity,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Colors.transparent,
                         borderRadius: BorderRadius.circular(28),
                         border: Border.all(
                           color: const Color(0xFF52B788),
-                          width: 2,
+                          width: 1.5,
                         ),
                       ),
                       child: TextButton(
                         onPressed: () {
-                          // Navigate to login screen
                           Navigator.pushReplacementNamed(context, '/login');
                         },
                         style: TextButton.styleFrom(
@@ -328,20 +317,18 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
   Widget _buildFeatureCard({
     required IconData icon,
     required String title,
-    required Gradient gradient,
+    required String description,
+    required Color color,
   }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
@@ -349,38 +336,39 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(15),
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
-              color: Colors.white,
+              color: color,
               size: 28,
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: const Icon(
-              Icons.star_border,
-              color: Colors.white,
-              size: 20,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -388,7 +376,7 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
     );
   }
 
-  Widget _buildStatistic(String value, String label) {
+  Widget _buildSimpleStatistic(String value, String label) {
     return Column(
       children: [
         Text(
@@ -405,86 +393,28 @@ class _OnboardingSecondScreenState extends State<OnboardingSecondScreen> with Ti
           label,
           style: TextStyle(
             color: const Color(0xFF95D5B2).withOpacity(0.8),
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w500,
-            letterSpacing: 0.3,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSafeBackground() {
-    return AnimatedBuilder(
-      animation: _starAnimation,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: SafeBackgroundPainter(_starAnimation.value),
-          size: Size.infinite,
-        );
-      },
+  Widget _buildSimpleBackground() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment.topLeft,
+          radius: 1.5,
+          colors: [
+            Color(0xFF2D6A4F),
+            Color(0xFF081C15),
+            Color(0xFF000000),
+          ],
+          stops: [0.0, 0.6, 1.0],
+        ),
+      ),
     );
   }
-}
-
-class SafeBackgroundPainter extends CustomPainter {
-  final double animationValue;
-
-  SafeBackgroundPainter(this.animationValue);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (size.width <= 0 || size.height <= 0) return;
-    
-    final paint = Paint();
-    
-    // Simple gradient background instead of complex paths
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    
-    // Create a simple radial gradient
-    final gradient = RadialGradient(
-      center: Alignment.topLeft,
-      radius: 1.5,
-      colors: [
-        const Color(0xFF2D6A4F).withOpacity(0.1),
-        const Color(0xFF40916C).withOpacity(0.08),
-        const Color(0xFF52B788).withOpacity(0.05),
-      ],
-      stops: const [0.0, 0.6, 1.0],
-    );
-    
-    paint.shader = gradient.createShader(rect);
-    canvas.drawRect(rect, paint);
-    
-    // Simple animated dots instead of complex stars
-    paint.shader = null;
-    paint.style = PaintingStyle.fill;
-    
-    final dotColors = [
-      const Color(0xFF52B788),
-      const Color(0xFF40916C),
-      const Color(0xFF95D5B2),
-    ];
-    
-    for (int i = 0; i < 15; i++) {
-      try {
-        final x = (i * 67.0) % (size.width - 10);
-        final y = (i * 67.0) % (size.height - 10);
-        final colorIndex = i % dotColors.length;
-        final opacity = 0.1 + (0.2 * (math.sin(animationValue * 2 * math.pi + i.toDouble()) + 1) / 2);
-        
-        paint.color = dotColors[colorIndex].withOpacity(opacity);
-        
-        // Draw simple circles instead of complex star shapes
-        final dotSize = 2.0 + (opacity * 3.0);
-        canvas.drawCircle(Offset(x, y), dotSize, paint);
-      } catch (e) {
-        // Skip drawing this dot if there's an error
-        continue;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 } 

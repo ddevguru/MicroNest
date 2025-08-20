@@ -7,6 +7,7 @@ import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/home_dashboard.dart';
+import 'screens/profile_screen.dart';
 
 void main() {
   runApp(const MicroNestApp());
@@ -82,6 +83,7 @@ class MicroNestApp extends StatelessWidget {
         '/signup': (context) => const SignupScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeDashboard(),
+        '/profile': (context) => const ProfileScreen(),
         // Add more routes as you create other screens
         // '/registration': (context) => const RegistrationScreen(),
       },
