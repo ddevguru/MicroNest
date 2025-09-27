@@ -64,5 +64,29 @@ class GroupMember {
         $stmt->bindParam(':user_id', $userId);
         return $stmt->execute();
     }
+
+    public function update($id, $data) {
+        $setParts = [];
+        $params = [];
+        
+        foreach ($data as $key => $value) {
+            $setParts[] = "$key = :$key";
+            $params[$key] = $value;
+        }
+        
+        $query = "UPDATE group_members SET " . implode(', ', $setParts) . " WHERE id = :id";
+        $params['id'] = $id;
+        
+        $stmt = $this->conn->prepare($query);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(":$key", $value);
+        }
+        
+        return $stmt->execute();
+    }
+
+    public function getConnection() {
+        return $this->conn;
+    }
 }
 ?>

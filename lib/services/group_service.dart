@@ -26,18 +26,18 @@ class GroupService {
   }
 
   // Make a contribution to a group
-  static Future<Map<String, dynamic>> makeContribution(int groupId, double amount) async {
-    return await AuthService.makeContribution(groupId, amount);
+  static Future<Map<String, dynamic>> makeContribution(String groupId, double amount, String paymentMethod) async {
+    return await AuthService.makeContribution(groupId, amount, paymentMethod);
   }
 
   // Request withdrawal from a group
-  static Future<Map<String, dynamic>> requestWithdrawal(int groupId, double amount, String reason) async {
-    return await AuthService.requestWithdrawal(groupId, amount, reason);
+  static Future<Map<String, dynamic>> requestWithdrawal(String groupId, double amount, String purpose) async {
+    return await AuthService.requestWithdrawal(groupId, amount, purpose);
   }
 
   // Request loan from a group
-  static Future<Map<String, dynamic>> requestLoan(int groupId, double amount, String purpose, DateTime dueDate) async {
-    return await AuthService.requestLoan(groupId, amount, purpose, dueDate);
+  static Future<Map<String, dynamic>> requestLoan(String groupId, double amount, String purpose, int repaymentPeriod) async {
+    return await AuthService.requestLoan(groupId, amount, purpose, repaymentPeriod);
   }
 
   // Get group details

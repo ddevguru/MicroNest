@@ -410,7 +410,7 @@ class _GroupsScreenState extends State<GroupsScreen> with TickerProviderStateMix
             if (!isUserGroup) ...[
               const SizedBox(height: 12),
               Text(
-                'Created by: ${group['created_by']}',
+                'Created by: ${group['created_by_name'] ?? 'Unknown'}', // Show name instead of ID
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.6),
                   fontSize: 12 * MediaQuery.of(context).textScaleFactor,
@@ -567,6 +567,8 @@ class _GroupsScreenState extends State<GroupsScreen> with TickerProviderStateMix
 
   void _showContributionDialog(BuildContext context, Map<String, dynamic> group) {
     final amountController = TextEditingController();
+    String selectedPaymentMethod = 'cash';
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -580,15 +582,47 @@ class _GroupsScreenState extends State<GroupsScreen> with TickerProviderStateMix
             const SizedBox(height: 16),
             TextField(
               controller: amountController,
-              decoration: InputDecoration(
-                labelText: 'Amount (₹)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.1),
-                labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-              ),
-              style: TextStyle(color: Colors.white),
               keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                labelStyle: const TextStyle(color: Colors.white70),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white70),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white70),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF52B788)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: selectedPaymentMethod,
+              dropdownColor: const Color(0xFF2A2A2A),
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Payment Method',
+                labelStyle: const TextStyle(color: Colors.white70),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white70),
+                ),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'cash', child: Text('Cash', style: TextStyle(color: Colors.white))),
+                DropdownMenuItem(value: 'bank_transfer', child: Text('Bank Transfer', style: TextStyle(color: Colors.white))),
+                DropdownMenuItem(value: 'mobile_money', child: Text('Mobile Money', style: TextStyle(color: Colors.white))),
+                DropdownMenuItem(value: 'razorpay', child: Text('Razorpay', style: TextStyle(color: Colors.white))),
+              ],
+              onChanged: (value) {
+                selectedPaymentMethod = value!;
+              },
             ),
           ],
         ),
@@ -599,31 +633,58 @@ class _GroupsScreenState extends State<GroupsScreen> with TickerProviderStateMix
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
-              final amount = double.tryParse(amountController.text);
-              if (amount != null && amount > 0) {
-                final result = await AuthService.makeContribution(int.parse(group['id'].toString()), amount);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result['success'] ? 'Contribution submitted successfully' : result['message'])),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid amount')));
+              if (amountController.text.isNotEmpty) {
+                final amount = double.tryParse(amountController.text);
+                if (amount != null && amount > 0) {
+                  Navigator.pop(context);
+                  await _makeContribution(context, group, amount, selectedPaymentMethod);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a valid amount')),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green[600],
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              backgroundColor: const Color(0xFF52B788),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Submit', style: TextStyle(color: Colors.white)),
+            child: const Text('Contribute', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
+  Future<void> _makeContribution(BuildContext context, Map<String, dynamic> group, double amount, String paymentMethod) async {
+    try {
+      final result = await AuthService.makeContribution(
+        group['id'].toString(),
+        amount,
+        paymentMethod,
+      );
+      
+      if (result['success']) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Contribution made successfully')),
+        );
+        _loadGroups(); // Reload all groups to update contribution count
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to make contribution: ${result['message']}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
   void _showWithdrawalDialog(BuildContext context, Map<String, dynamic> group) {
     final amountController = TextEditingController();
     final reasonController = TextEditingController();
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -633,32 +694,33 @@ class _GroupsScreenState extends State<GroupsScreen> with TickerProviderStateMix
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Available: ₹${group['total_contributed'] ?? 0}', style: TextStyle(color: Colors.white)),
+            Text('Group: ${group['name']}', style: TextStyle(color: Colors.white)),
             const SizedBox(height: 16),
             TextField(
               controller: amountController,
-              decoration: InputDecoration(
-                labelText: 'Amount (₹)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.1),
-                labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-              ),
-              style: TextStyle(color: Colors.white),
               keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                labelStyle: const TextStyle(color: Colors.white70),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white70),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: reasonController,
+              style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                labelText: 'Reason',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.1),
-                labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                labelText: 'Purpose',
+                labelStyle: const TextStyle(color: Colors.white70),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white70),
+                ),
               ),
-              style: TextStyle(color: Colors.white),
-              maxLines: 2,
             ),
           ],
         ),
@@ -669,33 +731,58 @@ class _GroupsScreenState extends State<GroupsScreen> with TickerProviderStateMix
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
-              final amount = double.tryParse(amountController.text);
-              if (amount != null && amount > 0 && reasonController.text.isNotEmpty) {
-                final result = await AuthService.requestWithdrawal(int.parse(group['id'].toString()), amount, reasonController.text);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result['success'] ? 'Withdrawal request submitted' : result['message'])),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid input')));
+              if (amountController.text.isNotEmpty && reasonController.text.isNotEmpty) {
+                final amount = double.tryParse(amountController.text);
+                if (amount != null && amount > 0) {
+                  Navigator.pop(context);
+                  await _requestWithdrawal(context, group, amount, reasonController.text);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a valid amount')),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green[600],
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              backgroundColor: const Color(0xFF52B788),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Submit', style: TextStyle(color: Colors.white)),
+            child: const Text('Request', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
+  Future<void> _requestWithdrawal(BuildContext context, Map<String, dynamic> group, double amount, String purpose) async {
+    try {
+      final result = await AuthService.requestWithdrawal(
+        group['id'].toString(),
+        amount,
+        purpose,
+      );
+      
+      if (result['success']) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Withdrawal request submitted successfully')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit withdrawal request: ${result['message']}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
   void _showLoanDialog(BuildContext context, Map<String, dynamic> group) {
     final amountController = TextEditingController();
     final purposeController = TextEditingController();
-    DateTime? selectedDate;
-
+    final repaymentController = TextEditingController();
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -709,49 +796,43 @@ class _GroupsScreenState extends State<GroupsScreen> with TickerProviderStateMix
             const SizedBox(height: 16),
             TextField(
               controller: amountController,
-              decoration: InputDecoration(
-                labelText: 'Amount (₹)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.1),
-                labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-              ),
-              style: TextStyle(color: Colors.white),
               keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                labelStyle: const TextStyle(color: Colors.white70),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white70),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: purposeController,
+              style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 labelText: 'Purpose',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.1),
-                labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                labelStyle: const TextStyle(color: Colors.white70),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white70),
+                ),
               ),
-              style: TextStyle(color: Colors.white),
-              maxLines: 2,
             ),
             const SizedBox(height: 16),
-            ListTile(
-              title: Text(
-                selectedDate?.toString().split(' ')[0] ?? 'Select Due Date',
-                style: TextStyle(color: Colors.white),
+            TextField(
+              controller: repaymentController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Repayment Period (months)',
+                labelStyle: const TextStyle(color: Colors.white70),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white70),
+                ),
               ),
-              trailing: Icon(Icons.calendar_today, color: Colors.white),
-              onTap: () async {
-                final date = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.now().add(const Duration(days: 30)),
-                  firstDate: DateTime.now().add(const Duration(days: 1)),
-                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                );
-                if (date != null) {
-                  setState(() {
-                    selectedDate = date;
-                  });
-                }
-              },
             ),
           ],
         ),
@@ -762,26 +843,53 @@ class _GroupsScreenState extends State<GroupsScreen> with TickerProviderStateMix
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
-              final amount = double.tryParse(amountController.text);
-              if (amount != null && amount > 0 && purposeController.text.isNotEmpty && selectedDate != null) {
-                final result = await AuthService.requestLoan(int.parse(group['id'].toString()), amount, purposeController.text, selectedDate!);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result['success'] ? 'Loan request submitted' : result['message'])),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid input')));
+              if (amountController.text.isNotEmpty && purposeController.text.isNotEmpty && repaymentController.text.isNotEmpty) {
+                final amount = double.tryParse(amountController.text);
+                final repaymentPeriod = int.tryParse(repaymentController.text) ?? 0;
+                if (amount != null && amount > 0 && repaymentPeriod > 0) {
+                  Navigator.pop(context);
+                  await _requestLoan(context, group, amount, purposeController.text, repaymentPeriod);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter valid amount and repayment period')),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green[600],
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              backgroundColor: const Color(0xFF52B788),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Submit', style: TextStyle(color: Colors.white)),
+            child: const Text('Request', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _requestLoan(BuildContext context, Map<String, dynamic> group, double amount, String purpose, int repaymentPeriod) async {
+    try {
+      final result = await AuthService.requestLoan(
+        group['id'].toString(),
+        amount,
+        purpose,
+        repaymentPeriod,
+      );
+      
+      if (result['success']) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Loan request submitted successfully')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit loan request: ${result['message']}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
   }
 }
 

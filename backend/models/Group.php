@@ -38,9 +38,10 @@ class Group {
     }
 
     public function getUserGroups($userId) {
-        $query = "SELECT g.* 
+        $query = "SELECT g.*, u.full_name as created_by_name 
                   FROM `groups` g 
                   INNER JOIN group_members gm ON g.id = gm.group_id 
+                  LEFT JOIN users u ON g.created_by = u.id
                   WHERE gm.user_id = :user_id AND g.status = 'active'";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':user_id', $userId);
@@ -49,8 +50,9 @@ class Group {
     }
 
     public function getAvailableGroups($userId) {
-        $query = "SELECT g.* 
+        $query = "SELECT g.*, u.full_name as created_by_name 
                   FROM `groups` g 
+                  LEFT JOIN users u ON g.created_by = u.id
                   WHERE g.status = 'active' 
                   AND g.current_members < g.max_members 
                   AND g.id NOT IN (

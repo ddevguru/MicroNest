@@ -71,7 +71,7 @@ class _RequestLoanScreenState extends State<RequestLoanScreen> {
         selectedGroup!['id'],
         double.parse(_amountController.text),
         _purposeController.text,
-        DateTime.parse(_dueDateController.text),
+        DateTime.parse(_dueDateController.text).millisecondsSinceEpoch,
       );
 
       if (result['success'] == true) {

@@ -8,19 +8,17 @@ require_once __DIR__ . '/../../models/GroupMember.php';
 
 header('Content-Type: application/json');
 
-ini_set('display_errors', 0);
+ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 error_reporting(E_ALL);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    error_log("Get group details error: Method not allowed");
     ApiResponse::error('Method not allowed', 405);
 }
 
 try {
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
     if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-        error_log("Get group details error: Missing or invalid token");
         ApiResponse::error('Authorization token required', 401);
     }
 
@@ -31,33 +29,54 @@ try {
     // Accept both 'id' and 'group_id' parameters
     $groupId = $_GET['group_id'] ?? $_GET['id'] ?? null;
     if (!$groupId) {
-        error_log("Get group details error: Group ID required");
         ApiResponse::error('Group ID is required', 400);
     }
 
+    // Test database connection
+    $database = new Database();
+    $conn = $database->getConnection();
+    
+    // Check if groups table exists
+    $stmt = $conn->query("SHOW TABLES LIKE 'groups'");
+    $groupsTableExists = $stmt->fetch();
+    
+    // Check if group_members table exists
+    $stmt = $conn->query("SHOW TABLES LIKE 'group_members'");
+    $groupMembersTableExists = $stmt->fetch();
+
     $group = new Group();
     $groupData = $group->findById($groupId);
+    
     if (!$groupData) {
-        error_log("Get group details error: Group not found - ID: $groupId");
         ApiResponse::error('Group not found', 404);
     }
 
-    $groupMember = new GroupMember();
-    $members = $groupMember->getGroupMembers($groupId);
-    $isMember = $groupMember->isMember($groupId, $userId);
+    // Try to get members if table exists
+    $members = [];
+    $isMember = false;
+    
+    if ($groupMembersTableExists) {
+        $groupMember = new GroupMember();
+        $members = $groupMember->getGroupMembers($groupId);
+        $isMember = $groupMember->isMember($groupId, $userId);
+    }
 
     $responseData = [
         'group' => $groupData,
         'members' => $members,
         'is_member' => $isMember,
-        'member_count' => count($members)
+        'member_count' => count($members),
+        'debug' => [
+            'groups_table_exists' => $groupsTableExists ? true : false,
+            'group_members_table_exists' => $groupMembersTableExists ? true : false,
+            'group_id' => $groupId,
+            'user_id' => $userId
+        ]
     ];
 
-    error_log("Get group details successful: Group ID = $groupId, User ID = $userId");
     ApiResponse::success($responseData, 'Group details fetched successfully');
 
 } catch (Exception $e) {
-    error_log("Get group details error: " . $e->getMessage() . " | File: " . $e->getFile() . " | Line: " . $e->getLine());
-    ApiResponse::serverError('An unexpected error occurred');
+    ApiResponse::error('Error: ' . $e->getMessage() . ' | File: ' . $e->getFile() . ' | Line: ' . $e->getLine(), 500);
 }
 ?> 

@@ -636,122 +636,94 @@ class AuthService {
     }
   }
 
-  static Future<Map<String, dynamic>> makeContribution(int groupId, double amount) async {
+  static Future<Map<String, dynamic>> makeContribution(String groupId, double amount, String paymentMethod) async {
     try {
-      final response = await authenticatedRequest(
-        'POST',
-        contributionEndpoint,
-        body: {'group_id': groupId, 'amount': amount},
-      );
+      final response = await authenticatedRequest('POST', '/api/groups/contribution.php', body: {
+        'group_id': groupId,
+        'amount': amount,
+        'payment_method': paymentMethod,
+      });
 
-      print('📡 Contribution Response Status: ${response.statusCode}');
-      print('📡 Contribution Response Body: ${response.body}');
+      print('📡 Make Contribution Response Status: ${response.statusCode}');
+      print('📡 Make Contribution Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         try {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
-          if (data['success']) {
-            return {'success': true, 'message': data['message'] ?? 'Contribution submitted successfully'};
-          } else {
-            return {'success': false, 'message': data['message'] ?? 'Failed to submit contribution'};
-          }
+          return {
+            'success': data['success'] ?? false,
+            'message': data['message'] ?? 'Contribution processed',
+          };
         } catch (e) {
-          print('❌ JSON Parsing Error: $e');
-          return {'success': false, 'message': 'Invalid response format: ${e.toString()}'};
+          return {'success': false, 'message': 'Failed to parse response'};
         }
       } else {
-        try {
-          final errorData = jsonDecode(response.body) as Map<String, dynamic>;
-          return {'success': false, 'message': errorData['message'] ?? 'Failed to submit contribution'};
-        } catch (e) {
-          print('❌ JSON Parsing Error: $e');
-          return {'success': false, 'message': 'Invalid response format: ${e.toString()}'};
-        }
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
       }
     } catch (e) {
-      print('❌ Contribution Error: $e');
-      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+      print('❌ Make Contribution Error: $e');
+      return {'success': false, 'message': 'Network error: $e'};
     }
   }
 
-  static Future<Map<String, dynamic>> requestWithdrawal(int groupId, double amount, String reason) async {
+  static Future<Map<String, dynamic>> requestWithdrawal(String groupId, double amount, String purpose) async {
     try {
-      final response = await authenticatedRequest(
-        'POST',
-        withdrawalEndpoint,
-        body: {'group_id': groupId, 'amount': amount, 'reason': reason},
-      );
+      final response = await authenticatedRequest('POST', '/api/groups/withdrawal-request.php', body: {
+        'group_id': groupId,
+        'amount': amount,
+        'purpose': purpose,
+      });
 
-      print('📡 Withdrawal Response Status: ${response.statusCode}');
-      print('📡 Withdrawal Response Body: ${response.body}');
+      print('📡 Withdrawal Request Response Status: ${response.statusCode}');
+      print('📡 Withdrawal Request Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         try {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
-          if (data['success']) {
-            return {'success': true, 'message': data['message'] ?? 'Withdrawal request submitted'};
-          } else {
-            return {'success': false, 'message': data['message'] ?? 'Failed to submit withdrawal request'};
-          }
+          return {
+            'success': data['success'] ?? false,
+            'message': data['message'] ?? 'Withdrawal request processed',
+          };
         } catch (e) {
-          print('❌ JSON Parsing Error: $e');
-          return {'success': false, 'message': 'Invalid response format: ${e.toString()}'};
+          return {'success': false, 'message': 'Failed to parse response'};
         }
       } else {
-        try {
-          final errorData = jsonDecode(response.body) as Map<String, dynamic>;
-          return {'success': false, 'message': errorData['message'] ?? 'Failed to submit withdrawal request'};
-        } catch (e) {
-          print('❌ JSON Parsing Error: $e');
-          return {'success': false, 'message': 'Invalid response format: ${e.toString()}'};
-        }
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
       }
     } catch (e) {
-      print('❌ Withdrawal Error: $e');
-      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+      print('❌ Withdrawal Request Error: $e');
+      return {'success': false, 'message': 'Network error: $e'};
     }
   }
 
-  static Future<Map<String, dynamic>> requestLoan(int groupId, double amount, String purpose, DateTime dueDate) async {
+  static Future<Map<String, dynamic>> requestLoan(String groupId, double amount, String purpose, int repaymentPeriod) async {
     try {
-      final response = await authenticatedRequest(
-        'POST',
-        loanEndpoint,
-        body: {
-          'group_id': groupId,
-          'amount': amount,
-          'purpose': purpose,
-          'due_date': dueDate.toIso8601String(),
-        },
-      );
+      final response = await authenticatedRequest('POST', '/api/groups/loan-request.php', body: {
+        'group_id': groupId,
+        'amount': amount,
+        'purpose': purpose,
+        'repayment_period': repaymentPeriod,
+      });
 
-      print('📡 Loan Response Status: ${response.statusCode}');
-      print('📡 Loan Response Body: ${response.body}');
+      print('📡 Loan Request Response Status: ${response.statusCode}');
+      print('📡 Loan Request Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         try {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
-          if (data['success']) {
-            return {'success': true, 'message': data['message'] ?? 'Loan request submitted'};
-          } else {
-            return {'success': false, 'message': data['message'] ?? 'Failed to submit loan request'};
-          }
+          return {
+            'success': data['success'] ?? false,
+            'message': data['message'] ?? 'Loan request processed',
+          };
         } catch (e) {
-          print('❌ JSON Parsing Error: $e');
-          return {'success': false, 'message': 'Invalid response format: ${e.toString()}'};
+          return {'success': false, 'message': 'Failed to parse response'};
         }
       } else {
-        try {
-          final errorData = jsonDecode(response.body) as Map<String, dynamic>;
-          return {'success': false, 'message': errorData['message'] ?? 'Failed to submit loan request'};
-        } catch (e) {
-          print('❌ JSON Parsing Error: $e');
-          return {'success': false, 'message': 'Invalid response format: ${e.toString()}'};
-        }
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
       }
     } catch (e) {
-      print('❌ Loan Error: $e');
-      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+      print('❌ Loan Request Error: $e');
+      return {'success': false, 'message': 'Network error: $e'};
     }
   }
 
